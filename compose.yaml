@@ -1,0 +1,123 @@
+services:
+  eureka-server:
+    build: /eureka/
+    image: image-eureka-server:0.0.1
+    container_name: container-eureka-server
+    ports:
+      - 8761:8761
+#porta localhoost:porta container docker
+
+  gateway:
+    build: /gateway/
+    image: image-gateway:0.0.1
+    container_name: container-gateway
+    ports:
+      - 8081:8081
+
+  buyer-service:
+    build: /buyer/
+    image: image-buyer:0.0.1
+    container_name: container-buyer
+    ports:
+      - 8082:8082
+    depends_on:
+      - eureka-server
+      - myqsqlcommercedb-server
+
+  stocker-service:
+    build: /stocker/
+    image: image-stocker:0.0.1
+    container_name: container-stocker
+    ports:
+      - 8083:8083
+    depends_on:
+      - eureka-server
+      - myqsqlshopdb-server
+
+  myqsqlshopdb-server:
+    image: mysql:latest
+    container_name: container-shopdb
+    environment:
+      MYSQL_DATABASE: shop
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes" 
+    ports:
+      - 3307:3306
+      
+  myqsqlcommercedb-server:
+    image: mysql:latest
+    container_name: container-commercedb
+    environment:
+      MYSQL_DATABASE: commerce
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes" 
+    ports:
+      - 3308:3306
+
+#
+# documentazione: https://docs.docker.com/compose/compose-file/
+#      
+# Questo file lo troviamo nella root del progetto contenitore (padre). Si deve chiamare "compose.yaml"
+# o al massimo "docker-compose.yaml" (o .yml). Il file serve a fare automaticamente la build delle immagini
+# dei microservizi elencati e creazione & avvio dei relativi container.
+# 
+# Il file segue bene o male la sintassi del JSON, ma per l'ereditarieta' delle proprieta' usa l'indentazione
+# (mentre il JSON usa le parentesi graffe). 
+#
+# Sotto la voce "services" vanno definiti tutti i microservizi (sotto moduli di maven) che vogliamo costruire.
+# Il nome che diamo al service qui e' arbitrario (es.: eureka-server, validator, gateway ecc ecc).
+#
+# La proprieta' "build" stabilisce il path dove troviamo il "Dockerfile" relativo al microservizio in questione.
+# Il percorso e' relativo a partire dalla cartella dove risiede il compose.yaml. 
+#  
+# La proprieta' "image" definisce il nome che verra' dato all'immagine. Docker come prima cosa cerca tale nome
+# all'interno del suo Docker-Hub. Se non lo trova, allora builda l'immagine usando il relativo Dockerfile.
+#
+# La proprieta' "container_name" definisce proprio il nome del container. E' importante in quanto tale nome
+# viene usato come riferimento per i servizi all'interno di un determinato container. In parole povere, viene
+# usato da un microservizio (tramite l'API RestTemaplate) per comunicare con un altro microservizio e, piu' in
+# generale, in qualsiasi path voi vogliate usare per richiamare un servizio (Postman).
+#
+# La proprieta' "ports" definisce un array di valori (dove quindi ogni elemento viene elencato tramite il
+# trattino) dove ogni elemento e' ad esempio cosi' composto:
+# 
+#         (porta host) --->  1234:5678  <--- (porta container)
+#
+# Questo significa che il container espone un servizio sulla porta 5678, e tale porta viene mappata sulla porta
+# 1234 dell'host sul quale e' in esecuzione il processo del container.
+#
+# Quindi se ho un container in esecuzione sul mio computer che espone un servizio sulla porta 5678 mappata sulla
+# 1234, potro' raggiungere tale servizio andando ad esempio sul browser alla pagina "http://localhost:1234". 
+# 
+# La proprieta' "depends_on" definisce un array di valori che indicano il nome dei service (quelli definiti
+# arbitrariamente all'inizio, es.: eureka-server, gateway, validator ecc ecc) dai quali "dipende" il service
+# in questione: il container in questione verra' avviato solo dopo i container specificati.
+#
+# Come lo usiamo questo file?
+# 
+# Una volta avviato l'engine di Docker (apri Docker Desktop), apri un terminale, vai nella directory dove e'
+# presente questo file ed esegui il comando: 
+#
+# docker compose up -d
+#
+# dove -d esegue i container su una finestra di terminale in background, permettendovi di continuare a lavorare
+# sul terminale corrente.
+#
+# Quel che succede all'esecuzione del comando e' che viene fatta la build di ogni immagine definita all'interno
+# dei services del "compose.yaml". Questo avviene eseguendo le istruzioni presenti all'interno dei relativi
+# "Dockerfile" o scaricando l'immagine dal Docker-Hub. Successivamente, vengono creati ed avviati i containers
+# di ogni service (in un ordine stabilito anche dai parametri della proprieta' "depends_on"). Se non specificato
+# diversamente, tutti i services faranno parte dello stesso network (che di default si chiamera' come il nome
+# della cartella del compose.yaml seguito dalla parola "_default". Esempio: docker-employee-service_default).
+#
+# Se vengono specificati uno o piu' network, vanno anche ridichiarati in coda al compose.yml. Esempio:
+#
+# services:
+#   nomeServizio1:
+#     ...
+#     ...
+#     networks:
+#       - nome_network
+#     ...
+#   ...
+#
+# networks:
+#   nome_network:
